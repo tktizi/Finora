@@ -6,7 +6,7 @@ import SavingsIcon from '@mui/icons-material/Savings';
 
 type Props = {};
 
-const Navbar = () => {
+const Navbar = (props: Props) => {
     const { palette } = useTheme();
     const [selected, setSelected] = useState("dashboard");
     return (
