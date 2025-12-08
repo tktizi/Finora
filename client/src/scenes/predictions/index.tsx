@@ -42,6 +42,40 @@ const Predictions = () => {
     });
   }, [kpiData]);
 
+
+  const stats = useMemo(() => {
+    if (!kpiData) return null;
+
+    const monthData = kpiData[0].monthlyData;
+    const points: Array<DataPoint> = monthData.map(({ revenue }, i) => [i, revenue]);
+
+    // test = останні 2 місяці 
+    const testSize = Math.min(2, Math.max(1, points.length - 2));
+    const train = points.slice(0, points.length - testSize);
+    const test = points.slice(points.length - testSize);
+
+    const model = regression.linear(train);
+
+    const yTrue = test.map((p) => p[1] as number);
+    const yPred = test.map((p) => model.predict(p[0] as number)[1] as number);
+
+    const n = yTrue.length;
+    const mae = yTrue.reduce((s, y, i) => s + Math.abs(y - yPred[i]), 0) / n;
+    const rmse = Math.sqrt(
+      yTrue.reduce((s, y, i) => s + (y - yPred[i]) ** 2, 0) / n
+    );
+    const mape =
+      (yTrue.reduce((s, y, i) => s + Math.abs((y - yPred[i]) / (y || 1)), 0) / n) *
+      100;
+
+    const mean = yTrue.reduce((s, y) => s + y, 0) / n;
+    const ssTot = yTrue.reduce((s, y) => s + (y - mean) ** 2, 0);
+    const ssRes = yTrue.reduce((s, y, i) => s + (y - yPred[i]) ** 2, 0);
+    const r2 = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
+
+    return { trainN: train.length, testN: test.length, mae, rmse, mape, r2 };
+  }, [kpiData]);
+
   return (
     <DashboardBox width="100%" height="100%" p="1rem" overflow="hidden">
       <FlexBetween m="1rem 2.5rem" gap="1rem">
@@ -51,6 +85,13 @@ const Predictions = () => {
             Charted revenue and predicted revenue based on a simple linear
             regression model
           </Typography>
+          {stats && (
+            <Typography variant="body2" sx={{ mt: "0.25rem", color: palette.grey[400] }}>
+                Train: {stats.trainN} • Test: {stats.testN} • MAE: ${stats.mae.toFixed(2)} •
+                RMSE: ${stats.rmse.toFixed(2)} • MAPE: {stats.mape.toFixed(2)}% • R²:{" "}
+                {stats.r2.toFixed(3)}
+            </Typography>
+            )}
         </Box>
         <Button
           onClick={() => setIsPredictions(!isPredictions)}
